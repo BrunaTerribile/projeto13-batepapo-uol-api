@@ -140,6 +140,29 @@ app.get("/messages", async (req, res) => {
         }   
 });
 
-
+app.post("/status", async (req, res) => {
+    const user = req.header.user
+  
+    try {
+        const userOn = await db
+        .collection("users")
+        .findOne({name: user})
+  
+        console.log("User está na lista")
+  
+        if(!userOn){
+            res.status(404).send("Este usuário não esta na lista :(");
+            return;
+        }
+  
+        await db
+            .collection("users")
+            .updateOne({name: user}, {lastStatus: Date.now});
+  
+        res.status(200).send("Time atualizado");
+    } catch (err){
+        res.status(500).send(err);
+    }
+  });
 
 app.listen(5000, () => console.log("Server running in port: 5000"));

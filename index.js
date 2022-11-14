@@ -3,13 +3,11 @@ import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import dotenv from "dotenv";
 import joi from 'joi'
-
-
+import dayjs from 'dayjs';
 
 const nameSchema = joi.object({
     name: joi.string()
 })
-
 const app = express();
 
 dotenv.config();
@@ -26,11 +24,19 @@ try {
 }
 
 app.post("/participants", async (req, res) => {
-    const body = req.body
+    const body = req.body;
+    let now = dayjs().locale('pt-br').format('HH:mm:ss');
     const validation = nameSchema.validate(body, {abortEarly: false});
     const user = {
         name: body.name,
         lastStatus: Date.now()
+    }
+    const message = {
+        from: body.name,
+        to: 'Todos',
+        text: 'entra na sala...',
+        type: 'status',
+        time: now
     }
     
     if(validation.error){
@@ -40,11 +46,11 @@ app.post("/participants", async (req, res) => {
     }
 
     try {
-        await db.collection("users").insertOne(user)
-        console.log(user)
-        res.status(201).send("Usuário salvo com sucesso")
+        await db.collection("users").insertOne(user);
+        await db.collection("messages").insertOne(message);
+        res.sendStatus(201);
     } catch (err) {
-        res.status(500).send(err)
+        res.status(500).send(err);
     }
 });
 

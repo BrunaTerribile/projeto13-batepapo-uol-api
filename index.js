@@ -10,10 +10,9 @@ const nameSchema = joi.object({
 })
 
 const messageSchema = joi.object({
-    from: joi.string(),
-    to: joi.string(),
-    text: joi.string(),
-    type: joi.string(),
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('message').valid('private_message').required(),
 })
 
 let now = dayjs().locale('pt-br').format('HH:mm:ss');
@@ -69,7 +68,6 @@ app.get("/participants", async (req, res) => {
             .find({})
             .toArray();
         res.send(participants);
-        console.log(participants);
     } catch (err) {
         console.log(err);
         res.sendStatus(500);
@@ -78,9 +76,10 @@ app.get("/participants", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
     const body = req.body;
+    const user = req.headers.user
     const validation = messageSchema.validate(body, {abortEarly: false});
     const message = {
-        from: req.header.user,
+        from: user,
         to: body.to,
         text: body.text,
         type: body.type,
@@ -96,9 +95,7 @@ app.post("/messages", async (req, res) => {
     try {
         const userOn = await db
             .collection("users")
-            .findOne({name: req.header.user})
-
-        console.log("User está na lista")
+            .findOne({name: user});
     
         if(!userOn){
             res.status(400).send("Este usuário não existe");
@@ -115,18 +112,16 @@ app.post("/messages", async (req, res) => {
 
 app.get("/messages", async (req, res) => {
     const { limit } = req.query
-    const user = req.header.user
-     
-       if(!limit){
-        res.send(messages)
-        return;
-       }
-
+    const user = req.headers.user
+    
        try {
-            const messages = await db
+            const allMessages = await db
                 .collection("messages")
-                .find({to: 'Todos'})
+                .find({})
                 .toArray();
+
+            const messages = await allMessages
+                .filter( m => m.to === user || m.to === 'Todos');
 
             if(!limit){
                 res.send(messages)
@@ -141,7 +136,7 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/status", async (req, res) => {
-    const user = req.header.user
+    const user = req.headers.user
   
     try {
         const userOn = await db
@@ -151,18 +146,19 @@ app.post("/status", async (req, res) => {
         console.log("User está na lista")
   
         if(!userOn){
-            res.status(404).send("Este usuário não esta na lista :(");
+            res.sendStatus(404);
             return;
         }
   
         await db
             .collection("users")
-            .updateOne({name: user}, {lastStatus: Date.now});
+            .updateOne({name: user}, {$set: {lastStatus: Date.now()}});
   
         res.status(200).send("Time atualizado");
     } catch (err){
         res.status(500).send(err);
     }
-  });
+});
+
 
 app.listen(5000, () => console.log("Server running in port: 5000"));

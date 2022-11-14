@@ -8,8 +8,17 @@ import dayjs from 'dayjs';
 const nameSchema = joi.object({
     name: joi.string()
 })
-const app = express();
 
+const messageSchema = joi.object({
+    from: joi.string(),
+    to: joi.string(),
+    text: joi.string(),
+    type: joi.string(),
+})
+
+let now = dayjs().locale('pt-br').format('HH:mm:ss');
+
+const app = express();
 dotenv.config();
 app.use(cors());
 app.use(express.json());
@@ -25,7 +34,6 @@ try {
 
 app.post("/participants", async (req, res) => {
     const body = req.body;
-    let now = dayjs().locale('pt-br').format('HH:mm:ss');
     const validation = nameSchema.validate(body, {abortEarly: false});
     const user = {
         name: body.name,
@@ -66,7 +74,44 @@ app.get("/participants", async (req, res) => {
         console.log(err);
         res.sendStatus(500)
     }  
-  });
+});
+
+app.post("/messages", async (req, res) => {
+    const body = req.body;
+    const validation = messageSchema.validate(body, {abortEarly: false});
+    const message = {
+        from: req.header.user,
+        to: body.to,
+        text: body.text,
+        type: body.type,
+        time: now
+    }
+
+    if(validation.error){ //validação do participante
+        const errors = validation.error.details.map(d => d.message);
+        res.send(errors);
+        return;
+    }
+
+    try {
+        const userOn = await db
+            .collection("users")
+            .findOne({name: req.header.user})
+
+        console.log("User está na lista")
+    
+        if(!userOn){
+            res.status(400).send("Este usuário não existe");
+            return;
+        }
+
+        await db.collection("messages").insertOne(message);
+        res.sendStatus(201);
+    } catch (err) {
+        res.status(500).send(err);
+    }
+   
+});
 
 
 app.listen(5000, () => console.log("Server running in port: 5000"));

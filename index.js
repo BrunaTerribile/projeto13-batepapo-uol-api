@@ -69,10 +69,10 @@ app.get("/participants", async (req, res) => {
             .find({})
             .toArray();
         res.send(participants);
-        console.log(participants)
+        console.log(participants);
     } catch (err) {
         console.log(err);
-        res.sendStatus(500)
+        res.sendStatus(500);
     }  
 });
 
@@ -112,6 +112,34 @@ app.post("/messages", async (req, res) => {
     }
    
 });
+
+app.get("/messages", async (req, res) => {
+    const { limit } = req.query
+    const user = req.header.user
+     
+       if(!limit){
+        res.send(messages)
+        return;
+       }
+
+       try {
+            const messages = await db
+                .collection("messages")
+                .find({to: 'Todos'})
+                .toArray();
+
+            if(!limit){
+                res.send(messages)
+                return;
+            }
+
+            res.send(messages.slice(100));
+        } catch (err) {
+            console.log(err);
+            res.sendStatus(500);
+        }   
+});
+
 
 
 app.listen(5000, () => console.log("Server running in port: 5000"));

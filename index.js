@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import joi from 'joi'
 import dayjs from 'dayjs';
 
+let now = dayjs().locale('pt-br').format('HH:mm:ss');
+
 const nameSchema = joi.object({
     name: joi.string()
 })
@@ -14,8 +16,6 @@ const messageSchema = joi.object({
     text: joi.string().required(),
     type: joi.string().valid('message').valid('private_message').required(),
 })
-
-let now = dayjs().locale('pt-br').format('HH:mm:ss');
 
 const app = express();
 dotenv.config();
@@ -53,6 +53,15 @@ app.post("/participants", async (req, res) => {
     }
 
     try {
+        const isAvaiable = await db
+            .collection("users")
+            .findOne({name: body.name})
+
+        if(isAvaiable){
+            res.status(409).send("Nome de usuário indisponível");
+            return;
+        }
+
         await db.collection("users").insertOne(user);
         await db.collection("messages").insertOne(message);
         res.sendStatus(201);
@@ -160,5 +169,26 @@ app.post("/status", async (req, res) => {
     }
 });
 
+async function remove(){
+    const userList = await db
+        .collection("users")
+        .find({lastStatus: {$lte: (Date.now()-10000)}})
+        .toArray();
+
+    console.log(userList)
+
+    userList.forEach(u => {
+        db.collection("messages").insertOne({
+            from: u.name, 
+            to: 'Todos', 
+            text: 'sai da sala...', 
+            type: 'status', 
+            time: now
+        });
+        db.collection("users").deleteOne({name: u.name});
+    })
+}
+
+setInterval(remove, 15000)
 
 app.listen(5000, () => console.log("Server running in port: 5000"));

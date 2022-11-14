@@ -18,6 +18,7 @@ const messageSchema = joi.object({
 })
 
 const app = express();
+
 dotenv.config();
 app.use(cors());
 app.use(express.json());
@@ -37,14 +38,14 @@ app.post("/participants", async (req, res) => {
     const user = {
         name: body.name,
         lastStatus: Date.now()
-    }
+    };
     const message = {
         from: body.name,
         to: 'Todos',
         text: 'entra na sala...',
         type: 'status',
         time: now
-    }
+    };
     
     if(validation.error){
         const errors = validation.error.details.map(d => d.message);
@@ -85,7 +86,7 @@ app.get("/participants", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
     const body = req.body;
-    const user = req.headers.user
+    const user = req.headers.user;
     const validation = messageSchema.validate(body, {abortEarly: false});
     const message = {
         from: user,
@@ -97,7 +98,7 @@ app.post("/messages", async (req, res) => {
 
     if(validation.error){ //validação do participante
         const errors = validation.error.details.map(d => d.message);
-        res.send(errors);
+        res.status(422).send(errors);
         return;
     }
 
@@ -120,8 +121,8 @@ app.post("/messages", async (req, res) => {
 });
 
 app.get("/messages", async (req, res) => {
-    const { limit } = req.query
-    const user = req.headers.user
+    const { limit } = req.query;
+    const user = req.headers.user;
     
        try {
             const allMessages = await db
@@ -137,7 +138,7 @@ app.get("/messages", async (req, res) => {
                 return;
             }
 
-            res.send(messages.slice(100));
+            res.send(messages.slice(-limit));
         } catch (err) {
             console.log(err);
             res.sendStatus(500);
@@ -145,14 +146,12 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/status", async (req, res) => {
-    const user = req.headers.user
+    const user = req.headers.user;
   
     try {
         const userOn = await db
         .collection("users")
         .findOne({name: user})
-  
-        console.log("User está na lista")
   
         if(!userOn){
             res.sendStatus(404);
@@ -163,7 +162,7 @@ app.post("/status", async (req, res) => {
             .collection("users")
             .updateOne({name: user}, {$set: {lastStatus: Date.now()}});
   
-        res.status(200).send("Time atualizado");
+        res.sendStatus(200);
     } catch (err){
         res.status(500).send(err);
     }
@@ -174,8 +173,6 @@ async function remove(){
         .collection("users")
         .find({lastStatus: {$lte: (Date.now()-10000)}})
         .toArray();
-
-    console.log(userList)
 
     userList.forEach(u => {
         db.collection("messages").insertOne({
@@ -189,6 +186,6 @@ async function remove(){
     })
 }
 
-setInterval(remove, 15000)
+setInterval(remove, 15000);
 
 app.listen(5000, () => console.log("Server running in port: 5000"));
